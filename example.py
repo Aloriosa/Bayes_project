@@ -8,6 +8,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from BOCS import BOCS
 from random_samp import random_samp
+from local_search import local_search
+from simulated_annealing import simulated_annealing
 from quad_mat import quad_mat
 from sample_models import sample_models
 
@@ -43,12 +45,12 @@ from sample_models import sample_models
 # Save inputs in dictionary
 inputs = {}
 inputs['n_vars']     = 10
-inputs['evalBudget'] = 50
+inputs['evalBudget'] = 100 #50
 inputs['n_init']     = 10
-inputs['lambda']     = 1e-4
-
+inputs['lambda']     = 0 #1e-4
+L_c = 10
 # Save objective function and regularization term
-Q = quad_mat(inputs['n_vars'], 10)
+Q = quad_mat(inputs['n_vars'], L_c)
 inputs['model']    = lambda x: (x.dot(Q)*x).sum(axis=1) # compute x^TQx row-wise
 inputs['penalty']  = lambda x: inputs['lambda']*np.sum(x,axis=1)
 
@@ -66,6 +68,21 @@ objective = lambda x: inputs['model'](x) + inputs['penalty'](x)
 iter_t_rs = np.arange(rand_samp_obj.size)
 rs_opt  = np.minimum.accumulate(rand_samp_obj)
 
+
+# Run simulated annealing
+(sim_ann_model, sim_ann_obj) = simulated_annealing(objective, inputs.copy())
+
+# Compute optimal value found by simulated annealing
+iter_t_sa = np.arange(sim_ann_obj.size)
+sa_opt  = np.minimum.accumulate(sim_ann_obj)
+
+
+# Run local search
+(loc_search_model, loc_search_obj) = local_search(objective, inputs.copy())
+
+# Compute optimal value found by local search
+iter_t_ls = np.arange(loc_search_obj.size)
+ls_opt  = np.minimum.accumulate(loc_search_obj)
 
 # Run BOCS-SA and BOCS-SDP (order 2)
 (BOCS_SA_model, BOCS_SA_obj)   = BOCS(inputs.copy(), 2, 'SA')
@@ -93,13 +110,17 @@ ax.plot(iter_t, np.abs(BOCS_SA_opt - opt_f), color='r', label='BOCS-SA')
 ax.plot(iter_t, np.abs(BOCS_SDP_opt - opt_f), color='b', label='BOCS-SDP')
 #rand_sampling
 ax.plot(iter_t_rs, np.abs(rs_opt - np.min(objective(x_vals))), color='g', label='random_sampling')
+#simmulated annealing
+ax.plot(iter_t_sa, np.abs(sa_opt - np.min(objective(x_vals))), color='black', label='simmulated_annealing')
+#local_search
+ax.plot(iter_t_ls, np.abs(ls_opt - np.min(objective(x_vals))), color='pink', label='local_search')
 
 ax.set_yscale('log')
 ax.set_xlabel('$t$')
 ax.set_ylabel('Best $f(x)$')
 ax.legend()
 plt.show()
-fig.savefig('BOCS_rand_sampl_simpleregret.pdf')
+fig.savefig('BOCS_rand_sampl_simm_anneal_loc_search_simpleregret.pdf')
 plt.close(fig)
 
 # -- END OF FILE --
